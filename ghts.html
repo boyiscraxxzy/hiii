@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Texting and Calling App</title>
     <style>
+        /* Common styles */
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
             margin: 0;
             padding: 0;
+            background-color: #f4f4f4;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -21,8 +22,13 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            width: 80%;
+            max-width: 400px; /* Adjusted for mobile view */
             text-align: center;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 20px;
+            height: 80%;
         }
 
         h1 {
@@ -39,11 +45,13 @@
         }
 
         input, textarea, button {
-            width: 100%;
+            width: calc(100% - 22px); /* Adjust for padding and border */
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
         }
 
         button {
@@ -57,58 +65,199 @@
             background-color: #218838;
         }
 
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            border: 0;
+        .messages {
+            overflow-y: scroll;
+            padding: 10px;
+            margin: 0;
+            grid-row: 2;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            max-height: 300px;
+            text-align: left; /* Adjusted for readability */
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            grid-row: 3;
+            border-top: 1px solid #ccc;
+        }
+
+        .input-box input[type="text"] {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .input-box button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .input-box button:hover {
+            background-color: #0056b3;
+        }
+
+        .user {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+            text-align: left;
+        }
+
+        /* Mobile phone styles */
+        @media (max-width: 480px) {
+            .container {
+                width: 100%;
+                border-radius: 0;
+                box-shadow: none;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Texting and Calling App</h1>
-        <div class="texting-section">
-            <h2>Send a Text</h2>
-            <form id="textForm">
-                <label for="phoneNumber">Phone Number:</label>
-                <input type="text" id="phoneNumber" name="phoneNumber" required aria-required="true" aria-label="Phone Number">
-                <label for="message">Message:</label>
-                <textarea id="message" name="message" required aria-required="true" aria-label="Message"></textarea>
-                <button type="submit">Send Text</button>
-            </form>
-        </div>
+
+        <!-- Calling Section -->
         <div class="calling-section">
             <h2>Make a Call</h2>
             <form id="callForm">
                 <label for="callNumber">Phone Number:</label>
-                <input type="text" id="callNumber" name="callNumber" required aria-required="true" aria-label="Phone Number for Call">
+                <input type="tel" id="callNumber" name="callNumber" required aria-required="true" aria-label="Phone Number for Call">
                 <button type="submit">Call</button>
+                <div id="callError" class="error-message"></div>
             </form>
         </div>
+
+        <!-- Texting Section -->
+        <div class="texting-section">
+            <h2>Send a Text</h2>
+            <form id="textForm">
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" required aria-required="true" aria-label="Phone Number">
+                <label for="message">Message:</label>
+                <textarea id="message" name="message" required aria-required="true" aria-label="Message"></textarea>
+                <button type="submit">Send Text</button>
+                <div id="textError" class="error-message"></div>
+            </form>
+        </div>
+
+        <!-- Messaging Section -->
+        <div class="messages" id="messages">
+            <!-- Messages will be appended here -->
+        </div>
+
+        <!-- Input Box for Messaging -->
+        <div class="input-box">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
     </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twilio/3.66.0/twilio.min.js"></script>
     <script>
+        // Replace with your Twilio credentials
+        const accountSid = 'YOUR_TWILIO_ACCOUNT_SID';
+        const authToken = 'YOUR_TWILIO_AUTH_TOKEN';
+        const fromNumber = 'YOUR_TWILIO_PHONE_NUMBER';
+
+        // Initialize Twilio client
+        const client = Twilio(accountSid, authToken);
+
+        // Function to send a message
+        function sendMessage() {
+            var messageInput = document.getElementById('messageInput');
+            var message = messageInput.value.trim();
+            
+            if (message !== '') {
+                displayMessage('You', message);
+                messageInput.value = '';
+            }
+        }
+
+        // Function to display a message in the chat
+        function displayMessage(user, message) {
+            var messagesContainer = document.getElementById('messages');
+            var messageElement = document.createElement('div');
+            messageElement.innerHTML = `<span class="user">${user}:</span> ${message}`;
+            messagesContainer.appendChild(messageElement);
+
+            // Scroll to bottom of messages container
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Function to display error message in form
+        function displayError(formId, message) {
+            const errorElement = document.getElementById(`${formId}Error`);
+            errorElement.textContent = message;
+        }
+
+        // Event listener for submitting the text form
         document.getElementById('textForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const phoneNumber = document.getElementById('phoneNumber').value;
             const message = document.getElementById('message').value;
 
-            // Send text message using a messaging API
-            console.log(`Sending text to ${phoneNumber}: ${message}`);
-            alert(`Text sent to ${phoneNumber}`);
+            // Validate phone number format
+            if (!/^\+[1-9]\d{1,14}$/.test(phoneNumber)) {
+                displayError('text', 'Invalid phone number format. Use E.164 format, e.g., +1234567890.');
+                return;
+            }
+
+            // Send text message using Twilio API
+            client.messages.create({
+                body: message,
+                from: fromNumber,
+                to: phoneNumber
+            }).then(message => {
+                console.log(`Message sent to ${message.to}`);
+                displayMessage('You (Text)', `Sent to ${phoneNumber}: ${message.body}`);
+                alert(`Text sent to ${phoneNumber}`);
+                displayError('text', ''); // Clear any previous error message
+            }).catch(error => {
+                console.error('Error sending message:', error);
+                displayError('text', 'Failed to send text message. Please try again.');
+            });
         });
 
+        // Event listener for submitting the call form
         document.getElementById('callForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const callNumber = document.getElementById('callNumber').value;
 
-            // Make a call using a calling API
-            console.log(`Calling ${callNumber}`);
-            alert(`Calling ${callNumber}`);
+            // Validate phone number format
+            if (!/^\+[1-9]\d{1,14}$/.test(callNumber)) {
+                displayError('call', 'Invalid phone number format. Use E.164 format, e.g., +1234567890.');
+                return;
+            }
+
+            // Make a call using Twilio API
+            client.calls.create({
+                url: 'http://demo.twilio.com/docs/voice.xml',
+                to: callNumber,
+                from: fromNumber
+            }).then(call => {
+                console.log(`Calling ${call.to}`);
+                displayMessage('You (Call)', `Calling ${call.to}`);
+                alert(`Calling ${callNumber}`);
+                displayError('call', ''); // Clear any previous error message
+            }).catch(error => {
+                console.error('Error making call:', error);
+                displayError('call', 'Failed to make the call. Please try again.');
+            });
         });
     </script>
 </body>
